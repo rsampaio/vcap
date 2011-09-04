@@ -1,0 +1,12 @@
+---
+name: "cyclone"
+runtimes:
+  - "python26":
+      version: "2.6.5"
+      description: "Python 2.6.5"
+      executable: python
+      default: true
+app_servers:
+detection:
+  - "cyclone_app.py": '.'
+staged_services:

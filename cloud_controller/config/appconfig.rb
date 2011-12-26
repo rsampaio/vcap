@@ -2,8 +2,8 @@
 # Once we know which Rails environment we are in, we can fail fast in production
 # mode by checking that flag. This code runs too early to know for sure if
 # we are starting in production mode.
-
 require 'vcap/common'
+require 'vcap/staging/plugin/common'
 
 config_file = ENV['CLOUD_CONTROLLER_CONFIG'] || File.expand_path('../cloud_controller.yml', __FILE__)
 begin
@@ -34,14 +34,13 @@ required = { :external_uri => 'api.vcap.me',
              :support_address => 'http://support.cloudfoundry.com',
              :rails_environment => 'development',
              :local_route  => '127.0.0.1',
-             :local_register_only => true,
              :allow_external_app_uris => false,
              :staging => { :max_concurrent_stagers => 10,
                            :max_staging_runtime => 60 },
              :external_port => 9022,
              :directories => { :droplets          => '/var/vcap/shared/droplets',
                                :resources         => '/var/vcap/shared/resources',
-                               :staging_manifests => 'staging/manifests',
+                               :staging_manifests => StagingPlugin::DEFAULT_MANIFEST_ROOT,
                                :staging_cache     => '/var/vcap.local/staging',
                                :tmpdir            => '/var/vcap/data/cloud_controller/tmp'},
              :mbus => 'nats://localhost:4222/',
@@ -150,9 +149,84 @@ if AppConfig[:builtin_services]
   end
 end
 
+# Service broker config
+if AppConfig[:service_broker]
+  unless AppConfig[:service_broker].kind_of? Hash
+    klass = AppConfig[:service_broker].class
+    $stderr.puts "FATAL: Service broker config is invalid. Expected Hash, got #{klass}."
+    exit 1
+  end
+
+  unless AppConfig[:service_broker].has_key? :token
+    $stderr.puts "FATAL: Service broker require token key"
+    exit 1
+  end
+
+  token = AppConfig[:service_broker][:token]
+  unless (token.kind_of? String) || (token.kind_of? Integer)
+    $stderr.puts "FATAL: Token must be string or integer, #{token.class} given."
+    exit 1
+  end
+
+  AppConfig[:service_broker][:token] = token.to_s
+end
+
 c = OpenSSL::Cipher::Cipher.new('blowfish')
 pw_len = AppConfig[:keys][:password].length
 if pw_len < c.key_len
   $stderr.puts "The supplied password is too short (#{pw_len} bytes), must be at least #{c.key_len} bytes. (Though only the first #{c.key_len} will be used.)"
   exit 1
+end
+
+if AppConfig[:staging][:new_stager_email_regexp]
+  AppConfig[:staging][:new_stager_email_regexp] = Regexp.new(AppConfig[:staging][:new_stager_email_regexp])
+end
+
+if (AppConfig[:staging][:new_stager_percent] || AppConfig[:staging][:new_stager_email_regexp]) && !AppConfig[:redis]
+  $stderr.puts "You must supply a redis config to use the new stager"
+  exit 1
+end
+
+if AppConfig[:bootstrap_users]
+  unless AppConfig[:bootstrap_users].kind_of?(Array)
+    $stderr.puts "List of bootstrap users must be an array"
+    exit 1
+  end
+
+  for user in AppConfig[:bootstrap_users]
+    unless user.kind_of?(Hash)
+      $stderr.puts "List elements of bootstrap users must be a hash"
+      exit 1
+    end
+
+    unless user.has_key?('email')
+      $stderr.puts "#{user.inspect} is missing an email address"
+      exit 1
+    end
+
+    unless user['email'].kind_of?(String)
+      $stderr.puts "Email for #{user.inspect} must be a string"
+      exit 1
+    end
+
+    unless user.has_key?('password')
+      $stderr.puts "#{user.inspect} is missing a password"
+      exit 1
+    end
+
+    unless user['password'].kind_of?(String)
+      $stderr.puts "Password for #{user.inspect} must be a string"
+      exit 1
+    end
+
+    if user['is_admin'] && !(user['is_admin'].kind_of?(TrueClass) || user['password'].kind_of?(FalseClass))
+      $stderr.puts "#{user.inspect} should have a bool for is_admin"
+      exit 1
+    end
+  end
+end
+
+unless AppConfig.has_key?(:allow_registration)
+  $stderr.puts "Allow registration not set, defaulting to true"
+  AppConfig[:allow_registration] = true
 end

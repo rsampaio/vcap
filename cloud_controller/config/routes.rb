@@ -4,6 +4,7 @@
 CloudController::Application.routes.draw do
   get    'info'                      => 'default#info',         :as => :cloud_info
   get    'info/services'             => 'default#service_info', :as => :cloud_service_info
+  get    'info/runtimes'             => 'default#runtime_info', :as => :cloud_runtime_info
   get    'users'                     => 'users#list',           :as => :list_users
   post   'users'                     => 'users#create',         :as => :create_user
   get    'users/*email'              => 'users#info',           :as => :user_info
@@ -26,6 +27,10 @@ CloudController::Application.routes.draw do
   get    'apps/:name/update'         => 'apps#check_update'
   put    'apps/:name/update'         => 'apps#start_update'
 
+  # Stagers interact with the CC via these urls
+  post   'staging/droplet/:id/:upload_id' => 'staging#upload_droplet', :as => :upload_droplet
+  get    'staging/app/:id'                => 'staging#download_app',   :as => :download_unstaged_app
+
   post   'services/v1/offerings'                     => 'services#create',         :as => :service_create
   delete 'services/v1/offerings/:label'              => 'services#delete',         :as => :service_delete,         :label => /[^\/]+/
   get    'services/v1/offerings/:label/handles'      => 'services#list_handles',   :as => :service_list_handles,   :label => /[^\/]+/
@@ -38,6 +43,8 @@ CloudController::Application.routes.draw do
   post   'services/v1/binding_tokens'                => 'binding_tokens#create',   :as => :binding_token_create
   get    'services/v1/binding_tokens/:binding_token' => 'binding_tokens#get',      :as => :binding_token_get,      :binding_token => /[^\/]+/
   delete 'services/v1/binding_tokens/:binding_token' => 'binding_tokens#delete',   :as => :binding_token_delete,   :binding_token => /[^\/]+/
+  # Brokered Services
+  get    'brokered_services/poc/offerings' => 'services#list_brokered_services',   :as => :service_list_brokered_services
 
   # Legacy services implementation (for old vmc)
   get     'services'        => 'legacy_services#list',        :as => :legacy_service_list

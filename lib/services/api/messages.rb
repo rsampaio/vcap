@@ -18,7 +18,7 @@ module VCAP
       #
       class ServiceOfferingRequest < JsonMessage
         required :label,       SERVICE_LABEL_REGEX
-        required :url,         URI::regexp(%w(http))
+        required :url,         URI::regexp(%w(http https))
 
         optional :description, String
         optional :info_url,    URI::regexp(%w(http https))
@@ -28,6 +28,14 @@ module VCAP
         optional :binding_options
         optional :acls,        {'users' => [String], 'wildcards' => [String]}
         optional :active
+        optional :timeout,     Integer
+      end
+
+      class BrokeredServiceOfferingRequest < JsonMessage
+        required :label,        SERVICE_LABEL_REGEX
+        required :options,      [{"name" => String, "acls" => {"users" => [String], "wildcards" => [String] } , "credentials" => Hash}]
+        #required :options,      [::JsonSchema::WILDCARD]
+        optional :description,  String
       end
 
       class HandleUpdateRequest < JsonMessage
@@ -37,14 +45,18 @@ module VCAP
       end
 
       class ListHandlesResponse < JsonMessage
-        required :handles, [JsonSchema::WILDCARD]
+        required :handles, [::JsonSchema::WILDCARD]
+      end
+
+      class ListBrokeredServicesResponse < JsonMessage
+        required :brokered_services, [{"label" => String, "description" => String, "acls" => {"users" => [String], "wildcards" => [String]}}]
       end
 
       #
       # Provision a service instance
       # NB: Unprovision takes all args in the url
       #
-      class ProvisionRequest < JsonMessage
+      class CloudControllerProvisionRequest < JsonMessage
         required :label, SERVICE_LABEL_REGEX
         required :name,  String
         required :plan,  String
@@ -52,7 +64,16 @@ module VCAP
         optional :plan_option
       end
 
-      class ProvisionResponse < JsonMessage
+      class GatewayProvisionRequest < JsonMessage
+        required :label, SERVICE_LABEL_REGEX
+        required :name,  String
+        required :plan,  String
+        required :email, String
+
+        optional :plan_option
+      end
+
+      class GatewayProvisionResponse < JsonMessage
         required :service_id, String
         required :data
         required :credentials
@@ -70,6 +91,7 @@ module VCAP
       class GatewayBindRequest < JsonMessage
         required :service_id,    String
         required :label,         String
+        required :email,         String
         required :binding_options
       end
 

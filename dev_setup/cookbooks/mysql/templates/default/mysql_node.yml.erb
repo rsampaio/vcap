@@ -5,12 +5,11 @@ mysqldump_bin: mysqldump
 gzip_bin: gzip
 mysql_bin: mysql
 mbus: nats://<%= node[:nats_server][:user] %>:<%= node[:nats_server][:password] %>@<%= node[:nats_server][:host] %>:<%= node[:nats_server][:port] %>/
-index: <%= node[:mysql][:index] %>
-log_level: DEBUG
+index: <%= node[:mysql_node][:index] %>
 pid: /var/vcap/sys/run/mysql_node.pid
-available_storage: <%= node[:mysql][:available_storage] %>
-node_id: <%= "mysql_node_#{node[:mysql][:index]}" %>
-max_db_size: <%= node[:mysql][:max_db_size] %>
+available_storage: <%= node[:mysql_node][:available_storage] %>
+node_id: <%= "mysql_node_#{node[:mysql_node][:index]}" %>
+max_db_size: <%= node[:mysql_node][:max_db_size] %>
 max_long_query: 3
 max_long_tx: 30
 migration_nfs: /mnt/migration
@@ -19,3 +18,5 @@ mysql:
   port: 3306
   user: <%= node[:mysql][:server_root_user] %>
   pass: <%= node[:mysql][:server_root_password] %>
+logging:
+  level: debug

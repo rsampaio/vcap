@@ -31,7 +31,7 @@ read -p "Enter the password you want to use for root postgresql user: " POSTGRES
 echo "Installing dependencies"
 if [[ $PLATFORM == 'Linux' ]]; then
   sudo apt-get update
-  sudo apt-get -y install coreutils autoconf curl git-core ruby bison build-essential zlib1g-dev libssl-dev libreadline5-dev
+  sudo apt-get -qqy install coreutils autoconf libtool curl git-core ruby bison build-essential zlib1g-dev libssl-dev libreadline5-dev
 else
   echo "Sorry, we can't install dependencies for your system yet."
 fi
@@ -64,32 +64,18 @@ curl -s -k -B https://rvm.beginrescueend.com/install/rvm > /tmp/install_rvm
 bash /tmp/install_rvm
 rm /tmp/install_rvm
 
-echo "Fixing init scripts to work with rvm"
-init_file=""
-if [ -f ~/.bashrc ]; then
-  init_file="$HOME/.bashrc"
-elif [ -f ~/.bash_profile ]; then
-  init_file="$HOME/.bash_profile"
-elif [ -f ~/.zshrc ]; then
-  init_file="$HOME/.zshrc"
-fi
-if [ -f "$init_file" ]; then
-  if grep '^ *\[ -z "$PS1" \] && return *$' $init_file; then
-    sed -i.bkup -e 's/^ *\[ -z "$PS1" \] && return *$/if [ -n "$PS1" ]; then/' $init_file
-    echo "fi" >> $init_file
-  fi
-
-  echo '[[ -s "$HOME/.rvm/scripts/rvm" ]] && source "$HOME/.rvm/scripts/rvm"' >> $init_file
-fi
-
 echo "Activate rvm"
-rvm_path="$HOME/.rvm"
+if [ "$(id -u)" != "0" ]; then
+  rvm_path="$HOME/.rvm"
+else
+  rvm_path="/usr/local/rvm"
+fi
 [[ -s "$rvm_path/scripts/rvm" ]] && source "$rvm_path/scripts/rvm"
 type rvm | head -1
 
 # remove rake from default and global gems and instead install manually
-rm ~/.rvm/gemsets/default.gems
-rm ~/.rvm/gemsets/global.gems
+rm $rvm_path/gemsets/default.gems
+rm $rvm_path/gemsets/global.gems
 
 echo "Installing various rubies"
 rvm install 1.9.2-p180

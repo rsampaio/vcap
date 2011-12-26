@@ -1,5 +1,6 @@
 #!/usr/bin/env ruby
 
+require 'rubygems'
 require 'erb'
 require 'json'
 require 'fileutils'
@@ -10,7 +11,7 @@ script_dir = File.expand_path(File.dirname(__FILE__))
 
 # TODO: Once we integrate better with bin/vcap, this option parsing should
 # become more robust
-options = {"name" => DEPLOYMENT_DEFAULT_NAME}
+options = {}
 opts = OptionParser.new do |opts|
   opts.banner = "Usage: #{$0} [--name deployment_name] [--dir cloudfoundry_home_dir] [start|stop|restart|tail|status]"
   opts.on("-n", "--name deployment_name", "Name of the deployment") do |n|
@@ -21,6 +22,15 @@ opts = OptionParser.new do |opts|
   end
 end
 opts.order!(ARGV)
+
+options["name"], options["home"] = Deployment.get_deployment_target if options.empty?
+
+if options["name"]
+  puts "Targeting deployment \"#{options["name"]}\" with cloudfoundry home \"#{options["home"]}\""
+else
+  options["name"] = DEPLOYMENT_DEFAULT_NAME
+  puts "Targeting default deployment \"#{options["name"]}\""
+end
 
 if ARGV[0].nil? || !%w[start stop restart tail status].include?(ARGV[0].downcase)
     STDERR.puts "Usage: #{$0} [-n deployment_name] [-d cloudfoundry_home_dir] [start|stop|restart|tail|status]"
@@ -50,6 +60,11 @@ if vcap_components["components"].include?("cloud_controller")
   puts "Setting up cloud controller environment"
   ENV["CLOUD_CONTROLLER_CONFIG"]=File.join(deployment_config_path, "cloud_controller.yml")
   ENV["RAILS_ENV"]="production"
+
+  # Start the cloud controller component first as other components like the
+  # health manager depend on it. Specifically, the health manager uses the same
+  # database as the one used by the cloud controller.
+  vcap_components["components"].unshift(vcap_components["components"].delete("cloud_controller"))
 end
 
 # Set both http_proxy and HTTP_PROXY
@@ -72,4 +87,4 @@ vcap_path = File.join(deployment_info["cloudfoundry_path"], "bin")
 vcap_launch = File.join(script_dir, "vcap")
 
 puts "Using cloudfoundry config from #{deployment_config_path}"
-exec_cmd("#{ruby_binary} #{vcap_launch} #{ARGV[0].downcase} #{vcap_components["components"].join(" ")} -c #{deployment_config_path} -v #{vcap_path}")
+exec_cmd("#{ruby_binary} #{vcap_launch} #{ARGV[0].downcase} #{vcap_components["components"].join(" ")} -c #{deployment_config_path} -v #{vcap_path} -l #{deployment_info["deployment_log_path"]}")
